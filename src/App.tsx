@@ -32,9 +32,10 @@ type EditResult = {
     newrevid: number,
   }
 }
+type Source = 'lackingsources' | 'billedmammal';
 
 function App() {
-  const [source, setSource] = useState<string>('billedmammal');
+  const [source, setSource] = useState<Source>('lackingsources');
   const [titles, setTitles] = useState<string[]>([]);
   const [nsHits, setNsHits] = useState<NSHit[] | null>(null);
   const [error, setError] = useState<string>();
@@ -65,6 +66,11 @@ function App() {
         case 'billedmammal': {
           // https://en.wikipedia.org/wiki/User:BilledMammal/Sports_articles_probably_lacking_SIGCOV
           setTitles(await (await fetch(`articles/billedmammal.json`)).json());
+          break;
+        }
+        case 'lackingsources': {
+          setTitles(await (await fetch(`articles/lackingsources.json`)).json());
+          break;
         }
       }
     })();
@@ -109,12 +115,15 @@ function App() {
         window.open(SERVER_URL + '/login', "_self");
       }}>Log in</button>}<br /><br />
       <label htmlFor="source">Source: </label>
-      <select name="source" value={source} onChange={v => setSource(v.target.value)}>
+      <select name="source" value={source} onChange={v => setSource(v.target.value as Source)}>
+        <option value="lackingsources">Category:All articles lacking sources</option>
         <option value="billedmammal">BilledMammal list</option>
       </select><br />
       {titles.length ? <div>
         <button onClick={async () => {
-          const rndTitle = import.meta.env.DEV ? 'Elvis Marecos' : titles[Math.floor(Math.random() * titles.length)];
+          const rndTitle =
+            // import.meta.env.DEV ? 'Elvis Marecos' :
+            titles[Math.floor(Math.random() * titles.length)];
           setNsHits(null);
           setClipsPg(0);
           setTitle(rndTitle);
@@ -146,7 +155,7 @@ function App() {
                     const sitelinks = entity.entities[qid].sitelinks;
                     paperTitle = sitelinks.enwiki?.title;
                   }
-                  const snip = '...' + nsHit.snipBefore + nsHit.baseMatch + nsHit.snipAfter + '...';
+                  const snip = '...' + (nsHit.snipBefore ?? '') + nsHit.baseMatch + (nsHit.snipAfter ?? '') + '...';
                   const refTag = `<ref>{{cite web |title=${snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
                   const textResp = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
                     origin: '*',
