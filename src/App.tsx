@@ -18,8 +18,11 @@ type NSHit = {
   date: string,
   pageNo: string,
   url: string,
-  hasMore: boolean,
 };
+type NSHits = {
+  hasMore: boolean,
+  hits: NSHit[],
+}
 type Top = {
   username: string,
   score: number,
@@ -37,7 +40,7 @@ type Source = 'lackingsources' | 'billedmammal';
 function App() {
   const [source, setSource] = useState<Source>('lackingsources');
   const [titles, setTitles] = useState<string[]>([]);
-  const [nsHits, setNsHits] = useState<NSHit[] | null>(null);
+  const [nsHits, setNsHits] = useState<NSHits | null>(null);
   const [error, setError] = useState<string>();
   const [wikitext, setWikitext] = useState<string>();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,7 +136,7 @@ function App() {
           <div className="article" dangerouslySetInnerHTML={{ __html: artHtml }} />
           <div style={{ flexBasis: '50%' }}>
             <span style={{ fontWeight: 'bold' }}>Newspapers.com</span> hits:{' '}
-            {nsHits ? nsHits.length ? nsHits.map((nsHit, i) => (
+            {nsHits ? nsHits.hits?.length ? nsHits.hits.map((nsHit, i) => (
               <div key={i} className="parchment" onClick={async () => {
                 try {
                   const pages = await (await fetch('https://www.wikidata.org/w/api.php?' + new URLSearchParams({
@@ -186,7 +189,7 @@ function App() {
               setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg - 1)}))).json());
               setClipsPg(clipsPg - 1);
             }}>Prev page ({clipsPg})</button>}
-            {nsHits?.length && nsHits[0].hasMore && <button onClick={async () => {
+            {nsHits?.hasMore && <button onClick={async () => {
               setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg + 1)}))).json());
               setClipsPg(clipsPg + 1);
             }}>Next page ({clipsPg + 2})</button>}
@@ -203,7 +206,7 @@ function App() {
             <h2>Edit success! ✔️</h2>
             <p>View your diff here: <code><a target="_blank" href={`https://enwp.org/Special:Diff/${editResult.edit.newrevid}`}>Special:Diff/{editResult.edit.newrevid}</a></code></p>
           </>
-        ) : (
+        ) : me || import.meta.env.DEV ? (
           <>
             <h2>Confirm edit</h2>
             <ul style={{ textAlign: 'left' }}>
@@ -231,6 +234,11 @@ function App() {
                 setEditResult(editResult);
               }
             }}>Confirm</button>
+          </>
+        ) : (
+          <>
+            <h2>Log in 👤</h2>
+            <p>You must be logged in to edit and score points.</p>
           </>
         )}
         <button onClick={closeModal}>Close</button>
