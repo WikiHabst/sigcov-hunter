@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { createRef, useEffect, useState } from 'react'
 import './App.css'
 import Modal from './Modal';
 
@@ -23,6 +23,14 @@ type Top = {
   username: string,
   score: number,
 };
+type EditResult = {
+  edit: {
+    result: 'Success',
+    title: string,
+    oldrevid: number,
+    newrevid: number,
+  }
+}
 
 function App() {
   const [source, setSource] = useState<string>('billedmammal');
@@ -31,6 +39,10 @@ function App() {
   const [error, setError] = useState<string>();
   const [wikitext, setWikitext] = useState<string>();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const wikitextRef = createRef<HTMLTextAreaElement>();
+  const [refTag, setRefTag] = useState<string>('');
+  const [refUrl, setRefUrl] = useState<string>('');
+  const [editResult, setEditResult] = useState<EditResult | null>(null);
 
   const [me, setMe] = useState<any>(null);
   const [top, setTop] = useState<Top[]>([]);
@@ -73,6 +85,18 @@ function App() {
       }
     })();
   }, [title]);
+  useEffect(() => {
+    if (isModalOpen && wikitextRef.current && wikitext && refTag) {
+      wikitextRef.current.scrollTop = wikitextRef.current.scrollHeight;
+      wikitextRef.current.focus();
+      wikitextRef.current.setSelectionRange(wikitext.length - refTag.length, wikitext.length);
+    }
+  }, [isModalOpen]);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditResult(null);
+  }
 
   return (
     <>
@@ -120,7 +144,7 @@ function App() {
                     paperTitle = sitelinks.enwiki?.title;
                   }
                   const snip = '...' + nsHit.snipBefore + nsHit.baseMatch + nsHit.snipAfter + '...';
-                  const ref = `<ref>{{cite web |title=${snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
+                  const refTag = `<ref>{{cite web |title=${snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
                   const textResp = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
                     origin: '*',
                     action: 'query',
@@ -132,8 +156,11 @@ function App() {
                     rvsection: '0',
                     formatversion: '2',
                   })}`)).json();
-                  const wikitext = textResp.query.pages[0].revisions[0].slots.main.content + ref;
+                  const wikitext = textResp.query.pages[0].revisions[0].slots.main.content + refTag;
                   setWikitext(wikitext);
+                  setRefTag(refTag);
+                  setIsModalOpen(true);
+                  setRefUrl(nsHit.url);
                 } catch (e) {
                   console.error(e);
                   setError(JSON.stringify(e));
@@ -147,29 +174,46 @@ function App() {
         </div>}
       </div> : 'Loading...'}
       <h2>Top users</h2>
-      {top.map(t => <li key={t.username}>{top.findIndex(t2 => t2.score === t.score) + 1}. <a href={`https://enwp.org/User:${t.username}`}>User:{t.username}</a>, {t.score} points</li>)}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <h2>Confirm edit</h2>
-        <p>You are responsible for any edits made with SIGCOV Hunter.</p>
-        <pre>
-          {wikitext}
-        </pre>
-        <button onClick={async () => {
-          await (await fetch(SERVER_URL + '/edit', {
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            credentials: 'include',
-            body: JSON.stringify(import.meta.env.DEV ? {
-              title: 'User:Habst/sandbox2',
-              text: wikitext?.replaceAll('Category:', ':Category:'),
-            } : {
-              title,
-              text: wikitext,
-            }),
-          })).json();
-          setIsModalOpen(false);
-        }}>Confirm</button>
-        <button onClick={() => setIsModalOpen(false)}>Close</button>
+      <ul style={{ textAlign: 'left' }}>
+        {top.map(t => <li key={t.username}>{top.findIndex(t2 => t2.score === t.score) + 1}. <a href={`https://enwp.org/User:${t.username}`}>User:{t.username}</a>, {t.score} points</li>)}
+      </ul>
+      <Modal isOpen={isModalOpen} onClose={closeModal}>
+        {editResult ? (
+          <>
+            <h2>Edit success! ✔️</h2>
+            <p>View your diff here: <code><a target="_blank" href={`https://enwp.org/Special:Diff/${editResult.edit.newrevid}`}>Special:Diff/{editResult.edit.newrevid}</a></code></p>
+          </>
+        ) : (
+          <>
+            <h2>Confirm edit</h2>
+            <ul style={{ textAlign: 'left' }}>
+              <li>Reference URL: <code><a target="_blank" href={refUrl}>{refUrl}</a></code></li>
+              <li>Changes <span style={{ color: 'blue' }}>highlighted</span> below</li>
+              <li>⚠️ You are responsible for any edits made with SIGCOV Hunter</li>
+            </ul>
+            <textarea ref={wikitextRef} style={{ width: '100%', height: '50vh' }} value={wikitext} onChange={e => setWikitext(e.target.value)} /><br />
+            <button onClick={async () => {
+              const editResult: EditResult = await (await fetch(SERVER_URL + '/edit', {
+                headers: { 'Content-type': 'application/json' },
+                method: 'POST',
+                credentials: 'include',
+                body: JSON.stringify(import.meta.env.DEV ? {
+                  title: 'User:Habst/sandbox2',
+                  text: wikitext?.replaceAll('Category:', ':Category:'),
+                  summary: 'test edit',
+                } : {
+                  title,
+                  text: wikitext,
+                }),
+              })).json();
+              console.log('edit result', editResult);
+              if (editResult?.edit?.result === 'Success') {
+                setEditResult(editResult);
+              }
+            }}>Confirm</button>
+          </>
+        )}
+        <button onClick={closeModal}>Close</button>
       </Modal>
     </>
   )
