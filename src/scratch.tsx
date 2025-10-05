@@ -110,7 +110,7 @@
     const doc = new DOMParser().parseFromString(wiki[enwiki], 'text/html');
     const urls = [...doc.querySelectorAll('.references a[href]')].map(a => a.getAttribute('href')).filter(url => !nonSigcov.some(ns => url?.includes(ns)));
     if (allow.includes(enwiki)) continue;
-    const push = () => allow.push(enwiki);
+    // const push = () => allow.push(enwiki);
     if (urls.length) {
       console.log(urls.sort());
       console.log('Looks okay, but not on allow list:', enwiki);
