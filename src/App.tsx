@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 const SERVER_URL = 
-  // import.meta.env.DEV ? '//localhost:8000' :
+  import.meta.env.DEV ? '//localhost:8000' :
   'https://sigcovhunter.toolforge.org';
 
 type NSHit = {
-  snip: string,
+  snipBefore: string,
+  snipAfter: string,
+  baseMatch: string,
   publication: {
     id: string,
     name: string,
@@ -16,6 +18,10 @@ type NSHit = {
   pageNo: string,
   url: string,
 };
+type Top = {
+  username: string,
+  score: number,
+};
 
 function App() {
   const [source, setSource] = useState<string>('billedmammal');
@@ -24,6 +30,7 @@ function App() {
   const [error, setError] = useState<string>();
 
   const [me, setMe] = useState<any>(null);
+  const [top, setTop] = useState<Top[]>([]);
 
   const [title, setTitle] = useState<string>('');
   const [artHtml, setArtHtml] = useState<string>('');
@@ -33,6 +40,7 @@ function App() {
       if (r.ok) return r.json();
       return undefined;
     }).then(me => setMe(me));
+    fetch(SERVER_URL + '/top', { credentials: 'include' }).then(r => r.json()).then(top => setTop(top));
   }, []);
   useEffect(() => {
     (async () => {
@@ -109,7 +117,8 @@ function App() {
                     const sitelinks = entity.entities[qid].sitelinks;
                     paperTitle = sitelinks.enwiki?.title;
                   }
-                  const ref = `<ref>{{cite web |title=${nsHit.snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
+                  const snip = '...' + nsHit.snipBefore + nsHit.baseMatch + nsHit.snipAfter + '...';
+                  const ref = `<ref>{{cite web |title=${snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
                   const textResp = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
                     origin: '*',
                     action: 'query',
@@ -118,16 +127,20 @@ function App() {
                     format: 'json',
                     titles: title,
                     rvslots: 'main',
+                    rvsection: '0',
                     formatversion: '2',
                   })}`)).json();
-                  let wikitext = textResp.query.pages[0].revisions[0].slots.main.content;
-                  wikitext += ref;
+                  const wikitext = textResp.query.pages[0].revisions[0].slots.main.content + ref;
+
                   await (await fetch(SERVER_URL + '/edit', {
+                    headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     credentials: 'include',
                     body: JSON.stringify({
+                      // title,
+                      // text: wikitext,
                       title: 'User:Habst/sandbox2',
-                      text: wikitext,
+                      text: wikitext.replaceAll('Category:', ':Category:'),
                     }),
                   })).json();
                 } catch (e) {
@@ -136,12 +149,14 @@ function App() {
                 }
               }}>
                 In {nsHit.publication.name} ({nsHit.publication.location}), {nsHit.date}, page {nsHit.pageNo}:<br />
-                ...{nsHit.snip}...
+                ...{nsHit.snipBefore}<span style={{ fontWeight: 'bold' }}>{nsHit.baseMatch}</span>{nsHit.snipAfter}...
               </div>
             )) : 'None 🙁' : 'Loading...'}
           </div>
         </div>}
       </div> : 'Loading...'}
+      <h2>Top users</h2>
+      {top.map(t => <li key={t.username}>{top.findIndex(t2 => t2.score === t.score) + 1}. <a href={`https://enwp.org/User:${t.username}`}>User:{t.username}</a>, {t.score} points</li>)}
     </>
   )
 }
