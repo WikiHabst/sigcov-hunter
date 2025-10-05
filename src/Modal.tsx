@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-export const Modal = ({ isOpen, onClose, children }: { isOpen: boolean, onClose: () => {}, children: React.ReactNode }) => {
+export const Modal = ({ isOpen, onClose, children }: { isOpen: boolean, onClose: () => void, children: React.ReactNode }) => {
   if (!isOpen) return null; // Don't render if not open
 
   return (

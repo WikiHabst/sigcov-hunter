@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import Modal from './Modal';
 
 const SERVER_URL = 
   import.meta.env.DEV ? '//localhost:8000' :
@@ -28,6 +29,8 @@ function App() {
   const [titles, setTitles] = useState<string[]>([]);
   const [nsHits, setNsHits] = useState<NSHit[] | null>(null);
   const [error, setError] = useState<string>();
+  const [wikitext, setWikitext] = useState<string>();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [me, setMe] = useState<any>(null);
   const [top, setTop] = useState<Top[]>([]);
@@ -85,8 +88,7 @@ function App() {
       </select><br />
       {titles.length ? <div>
         <button onClick={async () => {
-          const rndTitle = 'Elvis Marecos';
-          // const rndTitle = titles[Math.floor(Math.random() * titles.length)];
+          const rndTitle = import.meta.env.DEV ? 'Elvis Marecos' : titles[Math.floor(Math.random() * titles.length)];
           setNsHits(null);
           setTitle(rndTitle);
         }}>Get Un(der)referenced Article 📝</button>
@@ -131,18 +133,7 @@ function App() {
                     formatversion: '2',
                   })}`)).json();
                   const wikitext = textResp.query.pages[0].revisions[0].slots.main.content + ref;
-
-                  await (await fetch(SERVER_URL + '/edit', {
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'POST',
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      // title,
-                      // text: wikitext,
-                      title: 'User:Habst/sandbox2',
-                      text: wikitext.replaceAll('Category:', ':Category:'),
-                    }),
-                  })).json();
+                  setWikitext(wikitext);
                 } catch (e) {
                   console.error(e);
                   setError(JSON.stringify(e));
@@ -157,6 +148,29 @@ function App() {
       </div> : 'Loading...'}
       <h2>Top users</h2>
       {top.map(t => <li key={t.username}>{top.findIndex(t2 => t2.score === t.score) + 1}. <a href={`https://enwp.org/User:${t.username}`}>User:{t.username}</a>, {t.score} points</li>)}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <h2>Confirm edit</h2>
+        <p>You are responsible for any edits made with SIGCOV Hunter.</p>
+        <pre>
+          {wikitext}
+        </pre>
+        <button onClick={async () => {
+          await (await fetch(SERVER_URL + '/edit', {
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            credentials: 'include',
+            body: JSON.stringify(import.meta.env.DEV ? {
+              title: 'User:Habst/sandbox2',
+              text: wikitext?.replaceAll('Category:', ':Category:'),
+            } : {
+              title,
+              text: wikitext,
+            }),
+          })).json();
+          setIsModalOpen(false);
+        }}>Confirm</button>
+        <button onClick={() => setIsModalOpen(false)}>Close</button>
+      </Modal>
     </>
   )
 }
