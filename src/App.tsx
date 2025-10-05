@@ -1,6 +1,7 @@
 import { createRef, useEffect, useState } from 'react'
 import './App.css'
 import Modal from './Modal';
+import he from 'he';
 
 const SERVER_URL = 
   import.meta.env.DEV ? '//localhost:8000' :
@@ -158,7 +159,7 @@ function App() {
                     const sitelinks = entity.entities[qid].sitelinks;
                     paperTitle = sitelinks.enwiki?.title;
                   }
-                  const snip = '...' + (nsHit.snipBefore ?? '') + nsHit.baseMatch + (nsHit.snipAfter ?? '') + '...';
+                  const snip = he.decode('...' + (nsHit.snipBefore ?? '') + nsHit.baseMatch + (nsHit.snipAfter ?? '') + '...');
                   const refTag = `<ref>{{cite web |title=${snip} |url=${nsHit.url} |work=${paperTitle ? `[[${paperTitle}]]` : `${nsHit.publication.name} |location=${nsHit.publication.location}`} |page=${nsHit.pageNo} |date=${nsHit.date}}}</ref>`;
                   const textResp = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
                     origin: '*',
@@ -182,7 +183,7 @@ function App() {
                 }
               }}>
                 In {nsHit.publication.name} ({nsHit.publication.location}), {nsHit.date}, page {nsHit.pageNo}:<br />
-                ...{nsHit.snipBefore}<span style={{ fontWeight: 'bold' }}>{nsHit.baseMatch}</span>{nsHit.snipAfter}...
+                ...{nsHit.snipBefore ? he.decode(nsHit.snipBefore) : null}<span style={{ fontWeight: 'bold' }}>{nsHit.baseMatch}</span>{nsHit.snipAfter ? he.decode(nsHit.snipAfter) : null}...
               </div>
             )) : 'None 🙁' : 'Loading...'}
             {clipsPg >= 1 && <button onClick={async () => {
