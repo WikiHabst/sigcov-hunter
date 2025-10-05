@@ -121,7 +121,7 @@ function App() {
       <label htmlFor="source">Source: </label>
       <select name="source" value={source} onChange={v => setSource(v.target.value as Source)}>
         <option value="lackingsources">Category:All articles lacking sources</option>
-        <option value="billedmammal">BilledMammal list</option>
+        <option value="billedmammal">BilledMammal list (sports)</option>
       </select><br />
       {titles.length ? <div>
         <button onClick={async () => {
@@ -185,7 +185,7 @@ function App() {
                 In {nsHit.publication.name} ({nsHit.publication.location}), {nsHit.date}, page {nsHit.pageNo}:<br />
                 ...{nsHit.snipBefore ? he.decode(nsHit.snipBefore) : null}<span style={{ fontWeight: 'bold' }}>{nsHit.baseMatch}</span>{nsHit.snipAfter ? he.decode(nsHit.snipAfter) : null}...
               </div>
-            )) : 'None 🙁' : 'Loading...'}
+            )) : 'None 🙁' : <div className="spinner" />}
             {clipsPg >= 1 && <button onClick={async () => {
               setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg - 1)}))).json());
               setClipsPg(clipsPg - 1);
