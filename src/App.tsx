@@ -18,6 +18,7 @@ type NSHit = {
   date: string,
   pageNo: string,
   url: string,
+  hasMore: boolean,
 };
 type Top = {
   username: string,
@@ -43,6 +44,7 @@ function App() {
   const [refTag, setRefTag] = useState<string>('');
   const [refUrl, setRefUrl] = useState<string>('');
   const [editResult, setEditResult] = useState<EditResult | null>(null);
+  const [clipsPg, setClipsPg] = useState<number>(0);
 
   const [me, setMe] = useState<any>(null);
   const [top, setTop] = useState<Top[]>([]);
@@ -114,6 +116,7 @@ function App() {
         <button onClick={async () => {
           const rndTitle = import.meta.env.DEV ? 'Elvis Marecos' : titles[Math.floor(Math.random() * titles.length)];
           setNsHits(null);
+          setClipsPg(0);
           setTitle(rndTitle);
         }}>Get Un(der)referenced Article 📝</button>
         <h1>{title}</h1>
@@ -170,6 +173,14 @@ function App() {
                 ...{nsHit.snipBefore}<span style={{ fontWeight: 'bold' }}>{nsHit.baseMatch}</span>{nsHit.snipAfter}...
               </div>
             )) : 'None 🙁' : 'Loading...'}
+            {clipsPg >= 1 && <button onClick={async () => {
+              setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg - 1)}))).json());
+              setClipsPg(clipsPg - 1);
+            }}>Prev page ({clipsPg})</button>}
+            {nsHits?.length && nsHits[0].hasMore && <button onClick={async () => {
+              setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg + 1)}))).json());
+              setClipsPg(clipsPg + 1);
+            }}>Next page ({clipsPg + 2})</button>}
           </div>
         </div>}
       </div> : 'Loading...'}
