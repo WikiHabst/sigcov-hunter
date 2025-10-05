@@ -233,6 +233,7 @@ function App() {
               console.log('edit result', editResult);
               if (editResult?.edit?.result === 'Success') {
                 setEditResult(editResult);
+                if (me) setMe({ ...me, score: me.score + 1 });
               }
             }}>Confirm</button>
           </>
