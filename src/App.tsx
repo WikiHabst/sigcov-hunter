@@ -80,6 +80,7 @@ function App() {
     })();
   }, [source]);
   useEffect(() => {
+    let isCurrent = true;
     (async () => {
       if (title) {
         const r = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
@@ -96,6 +97,7 @@ function App() {
         setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title }))).json());
       }
     })();
+    return () => void (isCurrent = false);
   }, [title]);
   useEffect(() => {
     if (isModalOpen && wikitextRef.current && wikitext && refTag) {
