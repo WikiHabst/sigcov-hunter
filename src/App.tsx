@@ -2,46 +2,13 @@ import { createRef, useEffect, useState } from 'react'
 import './App.css'
 import Modal from './Modal';
 import he from 'he';
-
-const SERVER_URL = 
-  import.meta.env.DEV ? '//localhost:8000' :
-  'https://sigcovhunter.toolforge.org';
-
-type NSHit = {
-  snipBefore: string,
-  snipAfter: string,
-  baseMatch: string,
-  publication: {
-    id: string,
-    name: string,
-    location: string,
-  },
-  date: string,
-  pageNo: string,
-  url: string,
-};
-type NSHits = {
-  hasMore: boolean,
-  hits: NSHit[],
-}
-type Top = {
-  username: string,
-  score: number,
-};
-type EditResult = {
-  edit: {
-    result: 'Success',
-    title: string,
-    oldrevid: number,
-    newrevid: number,
-  }
-}
-type Source = 'lackingsources' | 'billedmammal';
+import { SERVER_URL, type EditResult, type NSHits, type Source, type Top } from './const';
+import { getNsHits } from './util';
 
 function App() {
   const [source, setSource] = useState<Source>('lackingsources');
   const [titles, setTitles] = useState<string[]>([]);
-  const [nsHits, setNsHits] = useState<NSHits | null>(null);
+  const [nsHits, setNsHits] = useState<{ [title: string]: { [pg: number]: NSHits } }>({});
   const [error, setError] = useState<string>();
   const [wikitext, setWikitext] = useState<string>();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,9 +47,8 @@ function App() {
     })();
   }, [source]);
   useEffect(() => {
-    let isCurrent = true;
     (async () => {
-      if (title) {
+      if (!title) return;
         const r = await (await fetch(`https://en.wikipedia.org/w/api.php?${new URLSearchParams({
           action: 'parse',
           format: 'json',
@@ -94,10 +60,9 @@ function App() {
         const html = r.parse.text;
         setArtHtml(html);
 
-        setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title }))).json());
-      }
+        const titleNsHits = await getNsHits(title);
+        setNsHits(nsHits => ({ ...nsHits, [title]: { ...nsHits[title], 0: titleNsHits } }));
     })();
-    return () => void (isCurrent = false);
   }, [title]);
   useEffect(() => {
     if (isModalOpen && wikitextRef.current && wikitext && refTag) {
@@ -128,9 +93,8 @@ function App() {
       {titles.length ? <div>
         <button onClick={async () => {
           const rndTitle =
-            // import.meta.env.DEV ? 'Elvis Marecos' :
+            import.meta.env.DEV ? 'Baar (region)' :
             titles[Math.floor(Math.random() * titles.length)];
-          setNsHits(null);
           setClipsPg(0);
           setTitle(rndTitle);
         }}>Get Un(der)referenced Article 📝</button>
@@ -139,7 +103,7 @@ function App() {
           <div className="article" dangerouslySetInnerHTML={{ __html: artHtml }} />
           <div style={{ flexBasis: '50%' }}>
             <span style={{ fontWeight: 'bold' }}>Newspapers.com</span> hits:{' '}
-            {nsHits ? nsHits.hits?.length ? nsHits.hits.map((nsHit, i) => (
+            {nsHits[title] ? nsHits[title][clipsPg]?.hits?.length ? nsHits[title][clipsPg].hits.map((nsHit, i) => (
               <div key={i} className="parchment" onClick={async () => {
                 try {
                   const pages = await (await fetch('https://www.wikidata.org/w/api.php?' + new URLSearchParams({
@@ -189,12 +153,18 @@ function App() {
               </div>
             )) : 'None 🙁' : <div className="spinner" />}
             {clipsPg >= 1 && <button onClick={async () => {
-              setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg - 1)}))).json());
               setClipsPg(clipsPg - 1);
+              if (!nsHits[title][clipsPg - 1]) {
+                const newHits = await getNsHits(title, clipsPg - 1);
+                setNsHits({ ...nsHits, [title]: { ...nsHits.title, [clipsPg - 1]: newHits } });
+              }
             }}>Prev page ({clipsPg})</button>}
-            {nsHits?.hasMore && <button onClick={async () => {
-              setNsHits(await (await fetch(SERVER_URL + `/news?` + new URLSearchParams({ title, pg: String(clipsPg + 1)}))).json());
+            {nsHits?.[title]?.[clipsPg]?.hasMore && <button onClick={async () => {
               setClipsPg(clipsPg + 1);
+              if (!nsHits[title][clipsPg + 1]) {
+                const newHits = await getNsHits(title, clipsPg + 1);
+                setNsHits({ ...nsHits, [title]: { ...nsHits.title, [clipsPg + 1]: newHits } });
+              }
             }}>Next page ({clipsPg + 2})</button>}
           </div>
         </div>}
@@ -251,4 +221,4 @@ function App() {
   )
 }
 
-export default App
+export default App;

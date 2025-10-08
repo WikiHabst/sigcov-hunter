@@ -3,7 +3,8 @@
   font-family: sans-serif;
   border: 5px dotted black;
   padding: 5px;
-  flex-basis: 50%;
+  /* flex-basis: 50%; */
+  max-width: 50%;
 }
 
 .parchment {
